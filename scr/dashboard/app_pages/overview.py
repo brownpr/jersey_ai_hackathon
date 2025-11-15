@@ -6,26 +6,6 @@ logging.getLogger("tornado.general").setLevel(logging.ERROR)
 import streamlit as st
 import pandas as pd
 
-# ----------------- SHARED DATA (INIT ON STARTUP) -----------------
-def init_data():
-    """Load data once per user session and store it in session_state."""
-    if "df" in st.session_state:
-        return  # already initialized for this session
-
-    today = date.today()
-    start = today - timedelta(days=182)  # ~ last 6 months; change if you want
-
-    dt1 = datetime.combine(start, datetime.min.time())
-    dt2 = datetime.combine(today, datetime.max.time())
-
-    # call your utils.get_data
-    df = get_data(dt1, dt2)
-
-    st.session_state.df = df
-    st.session_state.start_date = start
-    st.session_state.end_date = today
-
-
 def render():
     st.title("📊 Overview")
 
