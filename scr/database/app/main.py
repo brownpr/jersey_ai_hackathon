@@ -37,7 +37,7 @@ def get_sensor_readings_range(
     limit: int = Query(
         10000,
         gt=0,
-        le=100000,
+        le=10_000_000,
         description="Maximum number of points in the range",
     ),
 ):

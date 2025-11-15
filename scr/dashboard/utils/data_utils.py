@@ -19,7 +19,7 @@ def generate_time_series(days: int = 30) -> pd.DataFrame:
     return df
 
 
-def fetch_sensor_readings(start: datetime, end: datetime, limit: int = 100000):
+def fetch_sensor_readings(start: datetime, end: datetime, limit: int = 1_000_000):
     """
     Calls the /sensor-readings/range endpoint and returns the JSON response.
 

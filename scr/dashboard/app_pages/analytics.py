@@ -19,7 +19,7 @@ def render():
 
     # --- Date range selector (default: last year) ---
     today = date.today()
-    one_year_ago = today - timedelta(days=365)
+    one_year_ago = today - timedelta(days=182)
 
     start_date, end_date = st.date_input(
         "Date range",
