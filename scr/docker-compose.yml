@@ -24,5 +24,22 @@ services:
     ports:
       - "8000:8000"
 
+  db-update:
+    build: ./database/
+    depends_on:
+      - db-api
+    environment:
+      PG_HOST: db
+      PG_PORT: 5432
+      PG_DB: mydb
+      PG_USER: myuser
+      PG_PASS: mypassword
+    entrypoint: ""
+    command: >
+      sh -c "while true; do
+              python update_db.py || echo 'ERROR - update_db.py failed, will retry in 10m';
+              sleep 600;
+            done"
+
 volumes:
   db-data:

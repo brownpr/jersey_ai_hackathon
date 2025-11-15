@@ -11,7 +11,9 @@ WORKDIR /app
 # Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install https://api.v2.urbanobservatory.ac.uk/lib/uo-pyfetch.tar.gz  
 
+# Install spark
 RUN mkdir -p /opt/spark/jars && \
     curl -L -o /opt/spark/jars/postgresql-42.7.3.jar \
         https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar
