@@ -9,14 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency list
-COPY requirements.txt .
+# Copy code and dependencies
+COPY . .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy app code
-COPY app.py .
 
 # Expose Streamlit default port
 EXPOSE 8501
