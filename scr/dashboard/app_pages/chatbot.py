@@ -7,8 +7,8 @@ def render():
     st.title("💬 Chatbot")
 
     st.write(
-        "This page shows a simple chat interface using `st.chat_input` and "
-        "`st.chat_message`. The bot has very basic logic over the synthetic data."
+        "This page shows a simple chat interface using ollama"
+        "The bot has very basic logic but should allow us to interact with our data."
     )
 
     init_chat_state()
