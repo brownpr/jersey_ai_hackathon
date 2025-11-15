@@ -67,10 +67,4 @@ def get_data(dt1: datetime, dt2: datetime):
     # --- Normalize column names ---
     df = df.rename(columns=lambda c: c.strip() if isinstance(c, str) else c)
 
-    # --- Ensure Timestamp is datetime ---
-    if "Timestamp" in df.columns:
-        if not pd.api.types.is_datetime64_any_dtype(df["Timestamp"]):
-            df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
-        df = df.dropna(subset=["Timestamp"])
-
     return df
