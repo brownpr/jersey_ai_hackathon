@@ -1,23 +1,13 @@
+import logging
+
+logging.getLogger("tornado.application").setLevel(logging.ERROR)
+logging.getLogger("tornado.general").setLevel(logging.ERROR)
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import requests
-
-@st.cache_data
-def generate_time_series(days: int = 30) -> pd.DataFrame:
-    """Generate simple synthetic time-series data for the demo."""
-    now = datetime.now()
-    dates = [now - timedelta(days=i) for i in range(days)][::-1]
-    data = {
-        "date": dates,
-        "metric_a": np.random.normal(loc=50, scale=10, size=days).cumsum(),
-        "metric_b": np.random.normal(loc=30, scale=5, size=days).cumsum(),
-        "metric_c": np.random.normal(loc=10, scale=3, size=days).cumsum(),
-    }
-    df = pd.DataFrame(data)
-    return df
-
 
 def fetch_sensor_readings(start: datetime, end: datetime, limit: int = 1_000_000):
     """
@@ -62,3 +52,11 @@ def fetch_sensor_readings(start: datetime, end: datetime, limit: int = 1_000_000
     df = pd.DataFrame(data)
 
     return df
+
+@st.cache_data(show_spinner="Loading data from database...")
+def get_data(dt1: datetime, dt2: datetime):
+    """
+    Cached wrapper around fetch_sensor_readings.
+    Will only be recomputed if dt1/dt2 change OR cache is cleared.
+    """
+    return fetch_sensor_readings(dt1, dt2)

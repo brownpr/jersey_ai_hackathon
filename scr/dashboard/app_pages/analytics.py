@@ -1,51 +1,73 @@
+import logging
+
+logging.getLogger("tornado.application").setLevel(logging.ERROR)
+logging.getLogger("tornado.general").setLevel(logging.ERROR)
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, date
 
-from utils.data_utils import fetch_sensor_readings 
+from utils.data_utils import get_data  # cached function above
 
-def get_data(dt1=None, dt2=None):
-    # Safer defaults: last year if dt1 not provided, now for dt2
-    if dt2 is None:
-        dt2 = datetime.now()
-    if dt1 is None:
-        dt1 = dt2 - timedelta(days=365)
-
-    return fetch_sensor_readings(dt1, dt2)
 
 def render():
     st.title("📈 Analytics")
     st.write("Data exploration dashboard showing sensor time-series.")
 
-    # --- Date range selector (default: last year) ---
+    # --- Defaults for date range in session_state (shared across pages) ---
     today = date.today()
-    one_year_ago = today - timedelta(days=182)
+    default_start = today - timedelta(days=182)  # ~6 months
 
+    if "start_date" not in st.session_state:
+        st.session_state.start_date = default_start
+    if "end_date" not in st.session_state:
+        st.session_state.end_date = today
+
+    # Use a key so Streamlit can track widget state
     start_date, end_date = st.date_input(
         "Date range",
-        value=(one_year_ago, today),
+        value=(st.session_state.start_date, st.session_state.end_date),
         help="Select the date range to load data from the database.",
+        key="date_range",
     )
 
-    # Ensure we always have a proper range
+    # Keep session_state in sync with widget
+    st.session_state.start_date = start_date
+    st.session_state.end_date = end_date
+
+    # Convert to datetimes for querying
     if isinstance(start_date, date) and isinstance(end_date, date):
-        # Convert to datetimes for get_data
         dt1 = datetime.combine(start_date, datetime.min.time())
         dt2 = datetime.combine(end_date, datetime.max.time())
     else:
-        # Fallback just in case Streamlit returns something unexpected
-        dt1 = datetime.combine(one_year_ago, datetime.min.time())
+        dt1 = datetime.combine(default_start, datetime.min.time())
         dt2 = datetime.combine(today, datetime.max.time())
 
-    # --- Load data from DB for the selected date range ---
-    try:
-        df = get_data(dt1, dt2)
-    except RuntimeError as e:
-        st.error(str(e))
-        st.stop()
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        st.stop()
+    # --- Load / reload logic ---
+    # First time: if we don't have df in session_state, load it
+    if "df" not in st.session_state:
+        try:
+            st.session_state.df = get_data(dt1, dt2)
+        except RuntimeError as e:
+            st.error(str(e))
+            st.stop()
+        except Exception as e:
+            st.error(f"Unexpected error: {e}")
+            st.stop()
+
+    # Button that *forces* reload from DB for the selected dates
+    if st.button("🔄 Reload data from database"):
+        try:
+            st.session_state.df = get_data(dt1, dt2)
+            st.success("Data reloaded.")
+        except RuntimeError as e:
+            st.error(str(e))
+            st.stop()
+        except Exception as e:
+            st.error(f"Unexpected error: {e}")
+            st.stop()
+
+    df = st.session_state.df
 
     if df.empty:
         st.warning("No data found for the selected date range.")
@@ -62,7 +84,6 @@ def render():
         st.warning("No sensors found in the data.")
         return
 
-    # Choose the first sensor as default
     default_sensor = sensor_names[0]
 
     selected_sensor = st.selectbox(
@@ -70,6 +91,7 @@ def render():
         options=sorted(sensor_names),
         index=list(sorted(sensor_names)).index(default_sensor),
         help="Select which sensor to visualize.",
+        key="sensor_select",
     )
 
     # Filter by selected sensor
@@ -82,7 +104,6 @@ def render():
     st.markdown(f"### Sensor: `{selected_sensor}`")
 
     # --- Plot one graph per variable ---
-    # Example columns: sensor_name, variable, value, timestamp, flagged, ...
     variables = df_sensor["variable"].dropna().unique()
 
     if len(variables) == 0:
@@ -94,17 +115,10 @@ def render():
         if var_df.empty:
             continue
 
-        # Sort by time and set index for nicer plotting
-        var_df = var_df.sort_values("timestamp")
-        var_df = var_df.set_index("timestamp")
+        var_df = var_df.sort_values("timestamp").set_index("timestamp")
 
         st.subheader(f"{var} over time")
+        st.line_chart(var_df[["value"]], use_container_width=True)
 
-        # Only keep the 'value' column for the line chart
-        plot_df = var_df[["value"]]
-
-        st.line_chart(plot_df, use_container_width=True)
-
-    # Optionally, show raw filtered data
     with st.expander("Show raw data"):
         st.dataframe(df_sensor)
