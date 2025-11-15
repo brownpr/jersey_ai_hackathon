@@ -1,4 +1,5 @@
 # Install
+Prior to running install docker desktop
 ```
 docker-compose up --build
 
