@@ -1,13 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
+import requests
 from datetime import datetime, timedelta
+
 
 # ----------------- CONFIG -----------------
 st.set_page_config(
     page_title="Demo Dashboard with Chatbot",
     layout="wide",
 )
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")  # or whatever model you're using
+
 
 # ----------------- DATA GENERATION -----------------
 @st.cache_data
@@ -27,35 +33,27 @@ def generate_time_series(days: int = 30):
 df = generate_time_series(60)
 
 # ----------------- CHATBOT LOGIC -----------------
-def get_basic_answer(prompt: str) -> str:
-    """Very simple, fake chatbot logic for demo purposes."""
-    prompt_lower = prompt.lower()
-
-    if "mean" in prompt_lower or "average" in prompt_lower:
-        mean_a = df["metric_a"].mean()
-        mean_b = df["metric_b"].mean()
-        return (
-            f"The average of Metric A is **{mean_a:.2f}** and "
-            f"the average of Metric B is **{mean_b:.2f}** over the last {len(df)} points."
+def get_llm_answer(prompt: str) -> str:
+    """Call the Ollama chat API and return the model's reply."""
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/chat",
+            json={
+                "model": OLLAMA_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant inside a Streamlit dashboard."},
+                    {"role": "user", "content": prompt},
+                ],
+                "stream": False,
+            },
+            timeout=60,
         )
-    if "latest" in prompt_lower or "today" in prompt_lower:
-        last_row = df.iloc[-1]
-        return (
-            "Here are the latest values:\n\n"
-            f"- Metric A: **{last_row['metric_a']:.2f}**\n"
-            f"- Metric B: **{last_row['metric_b']:.2f}**\n"
-            f"- Metric C: **{last_row['metric_c']:.2f}**"
-        )
-    if "help" in prompt_lower:
-        return (
-            "I can answer simple questions about the demo data, like:\n"
-            "- `What is the mean of the metrics?`\n"
-            "- `Show me the latest values`\n"
-            "Or just chat with me!"
-        )
-
-    # Fallback: simple echo
-    return f"You said: `{prompt}`. I am a simple demo bot; ask me about mean or latest values."
+        response.raise_for_status()
+        data = response.json()
+        # Ollama's /api/chat returns: {"message": {"role": "...", "content": "..."}}
+        return data["message"]["content"]
+    except Exception as e:
+        return f"⚠️ Error calling Ollama: `{e}`. Check that the `ollama` container is running and reachable."
 
 
 def init_chat_state():
@@ -170,10 +168,13 @@ def page_chatbot():
             st.markdown(user_input)
 
         # Generate answer
-        answer = get_basic_answer(user_input)
-        st.session_state.messages.append({"role": "assistant", "content": answer})
         with st.chat_message("assistant"):
-            st.markdown(answer)
+            with st.spinner("Thinking..."):
+                answer = get_llm_answer(user_input)
+                st.markdown(answer)
+
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+
 
 # ----------------- MAIN -----------------
 def main():
