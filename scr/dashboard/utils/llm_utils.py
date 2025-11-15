@@ -1,10 +1,10 @@
 import os
-import re
-from typing import Literal, Optional, Dict, Any
+import requests
 
 import pandas as pd
-import requests
 import streamlit as st
+
+from utils.llm_tools import parse_intent, get_basic_stats, get_latest_value, get_sensor_overview
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")  # or whatever model you're using
@@ -18,189 +18,6 @@ def init_chat_state():
                 "content": "Hi! I'm the demo chatbot. Ask me about the metrics or say 'help'.",
             }
         ]
-
-def _filter_df(
-    df: pd.DataFrame,
-    variable: Optional[str] = None,
-    sensor: Optional[str] = None,
-) -> pd.DataFrame:
-    """Filter dataframe by variable and/or sensor substring."""
-    result = df.copy()
-
-    if variable:
-        result = result[result["variable"].str.lower() == variable.lower()]
-
-    if sensor:
-        result = result[result["sensor_name"].str.contains(sensor, case=False, na=False)]
-
-    return result
-
-def get_latest_value(
-    df: pd.DataFrame,
-    variable: Optional[str] = None,
-    sensor: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
-    """Return latest row for given variable/sensor combo, or None."""
-    filtered = _filter_df(df, variable=variable, sensor=sensor)
-    if filtered.empty:
-        return None
-
-    # Ensure Timestamp is datetime
-    if not pd.api.types.is_datetime64_any_dtype(filtered["timestamp"]):
-        filtered = filtered.copy()
-        filtered["timestamp"] = pd.to_datetime(filtered["timestamp"])
-
-    latest_row = filtered.sort_values("timestamp").iloc[-1]
-    return latest_row.to_dict()
-
-
-def get_basic_stats(
-    df: pd.DataFrame,
-    variable: Optional[str] = None,
-    sensor: Optional[str] = None,
-) -> Optional[Dict[str, float]]:
-    """Return basic stats (count, mean, min, max) for Value column."""
-    filtered = _filter_df(df, variable=variable, sensor=sensor)
-    if filtered.empty:
-        return None
-
-    s = filtered["value"].astype(float)
-    return {
-        "count": int(s.count()),
-        "mean": float(s.mean()),
-        "min": float(s.min()),
-        "max": float(s.max()),
-    }
-
-def get_sensor_overview(
-    df: pd.DataFrame,
-    sensor: str,
-) -> Optional[pd.DataFrame]:
-    """
-    For a given sensor name/pattern, return one latest row per variable.
-    Result: DataFrame with columns: variable, value, timestamp, sensor_name.
-    """
-    # Filter by sensor substring (case-insensitive)
-    filtered = df[df["sensor_name"].str.contains(sensor, case=False, na=False)].copy()
-    if filtered.empty:
-        return None
-
-    # Ensure timestamp is datetime
-    if not pd.api.types.is_datetime64_any_dtype(filtered["timestamp"]):
-        filtered["timestamp"] = pd.to_datetime(filtered["timestamp"])
-
-    # Sort and take the latest row per variable
-    filtered = filtered.sort_values("timestamp")
-    latest_per_var = (
-        filtered.groupby("variable", as_index=False)
-        .tail(1)
-        .reset_index(drop=True)
-    )
-
-    return latest_per_var[["variable", "value", "timestamp", "sensor_name"]]
-
-
-IntentType = Literal["latest_value", "stats", "help", "fallback"]
-
-def _extract_sensor_from_list(text: str, sensors) -> Optional[str]:
-    """
-    Try to find a known sensor name inside the user text, based on df['sensor_name'].
-    Uses case-insensitive and normalized (no spaces/underscores/hyphens) matching.
-    """
-    text_lower = text.lower()
-    normalized_text = re.sub(r"[\s_\-]", "", text_lower)
-
-    # Unique, non-null sensor names
-    candidates = sorted(
-        [str(s) for s in sensors if pd.notna(s)],
-        key=len,
-        reverse=True,
-    )
-
-    for sensor in candidates:
-        s_lower = sensor.lower()
-        s_norm = re.sub(r"[\s_\-]", "", s_lower)
-
-        if s_lower in text_lower or s_norm in normalized_text:
-            return sensor
-
-    return None
-
-
-def _extract_variable(text: str, variables) -> Optional[str]:
-    """
-    Try to map phrases in the question to any known variable name
-    coming from the dataframe (df['variable']).
-    """
-    text_lower = text.lower()
-    # also a normalized version (no spaces/underscores/hyphens)
-    normalized_text = re.sub(r"[\s_\-]", "", text_lower)
-
-    # Sort by length so we match 'PM10' before 'PM1', etc.
-    candidates = sorted(
-        [str(v) for v in variables if pd.notna(v)],
-        key=len,
-        reverse=True,
-    )
-
-    for var in candidates:
-        v_lower = var.lower()
-        v_norm = re.sub(r"[\s_\-]", "", v_lower)
-
-        # direct substring or normalized substring match
-        if v_lower in text_lower or v_norm in normalized_text:
-            return var
-
-    return None
-
-
-def _extract_sensor(text: str) -> Optional[str]:
-    """
-    Try to find something like BR3_SJB2, BR3- SJB2, etc.
-    Adjust the regex if your sensor naming pattern changes.
-    """
-    match = re.search(r"(br\d+[_\-]?[a-z0-9]+)", text, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    return None
-
-
-def parse_intent(user_input: str, df: pd.DataFrame) -> Dict[str, Any]:
-    text = user_input.lower().strip()
-
-    # All known variables from the dataframe
-    variables = df["variable"].dropna().unique()
-    sensors = df["sensor_name"].dropna().unique()
-
-    # Help
-    if text == "help" or "what can you do" in text:
-        return {"type": "help"}
-
-    # Latest value: "latest journey time", "last plates in", etc.
-    if "latest" in text or "last" in text:
-        variable = _extract_variable(user_input, variables)
-        sensor = _extract_sensor_from_list(user_input, sensors) or _extract_sensor(user_input)
-        return {"type": "latest_value", "variable": variable, "sensor": sensor}
-
-    # Stats: "average / mean / stats / min / max journey time"
-    if any(w in text for w in ["average", "avg", "mean", "min", "max", "stats", "summary"]):
-        variable = _extract_variable(user_input, variables)
-        sensor = _extract_sensor_from_list(user_input, sensors) or _extract_sensor(user_input)
-        return {"type": "stats", "variable": variable, "sensor": sensor}
-    
-    # Sensor overview: if user mentions a known sensor but not latest/stats/help
-    sensor = _extract_sensor_from_list(user_input, sensors)
-    if sensor:
-        # For queries like "info about PER_AIRMON_MESH306245" or just "PER_AIRMON_MESH306245"
-        return {"type": "sensor_overview", "sensor": sensor}
-
-    # Fallback to normal model
-    return {"type": "fallback"}
-
-
-# ─────────────────────────────────────────────────────────────
-# LLM call + tool routing
-# ─────────────────────────────────────────────────────────────
 
 def _call_ollama(prompt: str) -> str:
     """Call the Ollama chat API and return the model's reply."""
@@ -230,7 +47,7 @@ def _call_ollama(prompt: str) -> str:
         return data["message"]["content"]
     except Exception as e:
         return (
-            f"⚠️ Error calling Ollama: `{e}`. "
+            f"Error calling Ollama: `{e}`. "
             "Check that the `ollama` container is running and reachable."
         )
 
@@ -333,31 +150,42 @@ def get_llm_answer(prompt: str, df) -> str:
         if not sensor:
             return "I couldn't figure out which sensor you meant."
 
-        overview = get_sensor_overview(df, sensor=sensor)
+        overview = get_sensor_overview(df, sensor)
         if overview is None or overview.empty:
             return f"I couldn't find any data for sensor containing **'{sensor}'**."
 
-        # Build a markdown table
-        # (cap at e.g. 20 variables just in case)
         max_rows = 20
-        subset = overview.head(max_rows)
+        sub = overview.head(max_rows)
+
+        header_sensor = sub["sensor_name"].iloc[0]
 
         lines = [
-            f"Here is an overview of variables for sensor `{subset['sensor_name'].iloc[0]}`:",
+            f"Here is an overview of variables for sensor `{header_sensor}`:",
             "",
-            "| Variable | Latest value | Timestamp |",
-            "|----------|-------------:|-----------|",
+            "| Variable | Latest | Timestamp | Mean | Max | Min |",
+            "|----------|--------:|-----------:|------:|------:|------|",
         ]
-        for _, row in subset.iterrows():
+
+        for _, row in sub.iterrows():
+            # Convert values safely
+            latest_val = f"{row['latest_value']:.3f}" if pd.notna(row['latest_value']) else "—"
+            ts_val     = row['timestamp']
+            mean_val   = f"{row['mean']:.3f}"         if pd.notna(row['mean'])         else "—"
+            min_val    = f"{row['min']:.3f}"          if pd.notna(row['min'])          else "—"
+            max_val    = f"{row['max']:.3f}"          if pd.notna(row['max'])          else "—"
+
+
             lines.append(
-                f"| {row['variable']} | {row['value']} | {row['timestamp']} |"
+                f"| {row['variable']} | {latest_val} | {mean_val} | {min_val} | {max_val} | {ts_val} |"
             )
+
 
         if len(overview) > max_rows:
             lines.append("")
             lines.append(f"_Showing first {max_rows} variables out of {len(overview)}._")
 
         return "\n".join(lines)
+
 
     # 5. Fallback: normal LLM answer
     return _call_ollama(prompt)
