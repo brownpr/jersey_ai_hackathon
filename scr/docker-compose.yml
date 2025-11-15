@@ -41,5 +41,14 @@ services:
               sleep 600;
             done"
 
+  streamlit-app:
+    build: ./dashboard/
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLECORS=false
+      - STREAMLIT_SERVER_ENABLEXSRFPROTECTION=false
+
 volumes:
   db-data:
