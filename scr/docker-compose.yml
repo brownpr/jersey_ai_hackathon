@@ -39,8 +39,8 @@ services:
     entrypoint: ""
     command: >
       sh -c "while true; do
-              python update_db.py || echo 'ERROR - update_db.py failed, will retry in 10m';
-              sleep 600;
+              python update_db.py || echo 'ERROR - update_db.py failed, will retry in 1m';
+              sleep 60;
             done"
 
   ollama:
