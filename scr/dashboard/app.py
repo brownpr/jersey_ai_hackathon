@@ -36,7 +36,7 @@ def init_data():
 
 
 def main():
-    st.sidebar.title("Demo Navigation")
+    st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Go to",
         ("Overview", "Analytics", "Prediction", "Chatbot"),

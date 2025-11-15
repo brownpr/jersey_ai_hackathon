@@ -34,7 +34,7 @@ def render():
         # Generate answer
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                answer = get_llm_answer(user_input)
+                answer = get_llm_answer(user_input, df)
                 st.markdown(answer)
 
         st.session_state.messages.append({"role": "assistant", "content": answer})
