@@ -1,7 +1,7 @@
 import streamlit as st
 
 from utils.data_utils import generate_time_series
-from pages import overview, analytics, prediction, chatbot
+from app_pages import overview, analytics, prediction, chatbot
 
 # ----------------- CONFIG -----------------
 st.set_page_config(
@@ -24,7 +24,7 @@ def main():
     if page == "Overview":
         overview.render(df)
     elif page == "Analytics":
-        analytics.render(df)
+        analytics.render()
     elif page == "Prediction":
         prediction.render()
     elif page == "Chatbot":

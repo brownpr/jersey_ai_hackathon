@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    container_name: db
     environment:
       POSTGRES_DB: mydb
       POSTGRES_USER: myuser
@@ -12,6 +13,7 @@ services:
 
   db-api:
     build: ./database/
+    container_name: db-api
     depends_on:
       - db
     environment:
@@ -25,6 +27,7 @@ services:
 
   db-update:
     build: ./database/
+    container_name: db-update
     depends_on:
       - db-api
     environment:
@@ -50,6 +53,7 @@ services:
 
   streamlit-app:
     build: ./dashboard/
+    container_name: streamlit-app
     ports:
       - "8501:8501"
     depends_on:
