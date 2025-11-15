@@ -57,6 +57,20 @@ def fetch_sensor_readings(start: datetime, end: datetime, limit: int = 1_000_000
 def get_data(dt1: datetime, dt2: datetime):
     """
     Cached wrapper around fetch_sensor_readings.
-    Will only be recomputed if dt1/dt2 change OR cache is cleared.
+    Ensures dataframe column names are clean + standardised.
     """
-    return fetch_sensor_readings(dt1, dt2)
+    df = fetch_sensor_readings(dt1, dt2)
+
+    if df is None or df.empty:
+        return df
+
+    # --- Normalize column names ---
+    df = df.rename(columns=lambda c: c.strip() if isinstance(c, str) else c)
+
+    # --- Ensure Timestamp is datetime ---
+    if "Timestamp" in df.columns:
+        if not pd.api.types.is_datetime64_any_dtype(df["Timestamp"]):
+            df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
+        df = df.dropna(subset=["Timestamp"])
+
+    return df

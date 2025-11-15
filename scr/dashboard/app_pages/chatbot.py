@@ -4,6 +4,11 @@ from utils.llm_utils import get_llm_answer, init_chat_state
 
 
 def render():
+    df = st.session_state.df
+    if df is None or df.empty:
+        st.info("No data available.")
+        return
+
     st.title("💬 Chatbot")
 
     st.write(

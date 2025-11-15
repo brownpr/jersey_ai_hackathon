@@ -21,9 +21,6 @@ RUN mkdir -p /opt/spark/jars && \
 # App code
 COPY ./app ./
 
-# Historical CSVs (or mount them as a volume instead)
-COPY ./app/historical ./historical
-
 # Entrypoint
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh

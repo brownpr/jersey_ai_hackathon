@@ -66,5 +66,4 @@ services:
       - OLLAMA_MODEL=llama3.2
 
 volumes:
-  db-data:
   ollama_models:
