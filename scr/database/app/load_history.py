@@ -1,11 +1,11 @@
 import glob
 import os
-import time
 import csv
 import io
 
 import psycopg2
-from psycopg2 import OperationalError
+
+from utils import wait_for_db
 
 # Read connection config from environment, with sane defaults for docker-compose
 DB_CONFIG = dict(
@@ -15,23 +15,6 @@ DB_CONFIG = dict(
     host=os.getenv("POSTGRES_HOST", "db"),
     port=os.getenv("POSTGRES_PORT", "5432"),
 )
-
-
-def wait_for_db(max_retries=30, delay=1):
-    """Poll the DB until it accepts connections or we give up."""
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"INFO - Trying to connect to DB (attempt {attempt}/{max_retries})...")
-            conn = psycopg2.connect(**DB_CONFIG)
-            conn.close()
-            print("INFO - Database is ready.")
-            return True
-        except OperationalError as e:
-            print(f"DB not ready yet: {e}")
-            time.sleep(delay)
-    print("ERROR - Database never became ready, aborting initial CSV load.")
-    return False
-
 
 if not wait_for_db():
     raise SystemExit(1)
@@ -56,6 +39,13 @@ conn = psycopg2.connect(**DB_CONFIG)
 
 with conn:
     with conn.cursor() as cur:
+
+        cur.execute("SELECT EXISTS (SELECT 1 FROM sensor_readings LIMIT 1);")
+        (has_data,) = cur.fetchone()
+        if has_data:
+            print("INFO - sensor_readings already contains data. Aborting historical load.")
+            raise SystemExit(0)
+
         for csv_path in csv_files:
             print(f"INFO - Loading {csv_path} ...")
 
