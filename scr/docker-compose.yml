@@ -1,0 +1,69 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: db
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+
+  db-api:
+    build: ./database/
+    container_name: db-api
+    depends_on:
+      - db
+    environment:
+      PG_HOST: db
+      PG_PORT: 5432
+      PG_DB: mydb
+      PG_USER: myuser
+      PG_PASS: mypassword
+    ports:
+      - "8000:8000"
+
+  db-update:
+    build: ./database/
+    container_name: db-update
+    depends_on:
+      - db-api
+    environment:
+      PG_HOST: db
+      PG_PORT: 5432
+      PG_DB: mydb
+      PG_USER: myuser
+      PG_PASS: mypassword
+    entrypoint: ""
+    command: >
+      sh -c "while true; do
+              python update_db.py || echo 'ERROR - update_db.py failed, will retry in 1m';
+              sleep 60;
+            done"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+
+  streamlit-app:
+    build: ./dashboard/
+    container_name: streamlit-app
+    ports:
+      - "8501:8501"
+    depends_on:
+      - ollama
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLECORS=false
+      - STREAMLIT_SERVER_ENABLEXSRFPROTECTION=false
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2
+
+volumes:
+  ollama_models:

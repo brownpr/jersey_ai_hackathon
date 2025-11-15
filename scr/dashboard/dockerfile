@@ -1,0 +1,27 @@
+# Use a lightweight Python image
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies (optional but often useful)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy code and dependencies
+COPY . .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose Streamlit default port
+EXPOSE 8501
+
+# Streamlit config to make it work inside Docker
+ENV STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_SERVER_ENABLECORS=false \
+    STREAMLIT_SERVER_ENABLEXSRFPROTECTION=false
+
+# Run the app
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
