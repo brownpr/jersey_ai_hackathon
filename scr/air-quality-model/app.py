@@ -2,7 +2,7 @@ import math
 from typing import List
 
 from fastapi import FastAPI
-from pydantic import BaseModel, conlist
+from pydantic import BaseModel, Field
 import xgboost as xgb
 import numpy as np
 
@@ -10,16 +10,25 @@ app = FastAPI(title="XGBoost Model API")
 
 # ----- Feature schema -----
 class Sample(BaseModel):
-    hour: int
-    day: int
-    weekday: int
-    month: int
-    year: int
-    plates_in: float
-    plates_matching: float
-    plates_out: float
-    is_rush_hour: int  
-    is_weekend: int    
+    # environmental / air-quality features
+    humidity: float = Field(alias="Humidity")
+    no: float = Field(alias="NO")
+    no2: float = Field(alias="NO2")
+    o3: float = Field(alias="O3")
+    pm4: float = Field(alias="PM 4")       # alias for column "PM 4"
+    pm1: float = Field(alias="PM1")
+    pm10: float = Field(alias="PM10")
+    pm25: float = Field(alias="PM2.5")     # alias for column "PM2.5"
+    pressure: float = Field(alias="Pressure")
+    temperature: float = Field(alias="Temperature")
+
+    # other features
+    is_weekend: int
+    congestion: float = Field(alias="Congestion")
+
+    class Config:
+        # Optional: if you want to *forbid* any extra fields (e.g. sin_hour, etc.)
+        extra = "forbid"
 
 
 class PredictRequest(BaseModel):
@@ -27,6 +36,7 @@ class PredictRequest(BaseModel):
 
 
 class PredictResponse(BaseModel):
+    # assuming 1D regression output per sample
     predictions: List[List[float]]
 
 
@@ -36,58 +46,29 @@ model.load_model("airQualityModel.json")
 
 # Define the exact feature order expected by the model
 FEATURE_ORDER = [
-    "sin_hour", "cos_hour",
-    "sin_day", "cos_day",
-    "sin_weekday", "cos_weekday",
-    "sin_month", "cos_month",
-    "plates_in",
-    "plates_matching",
-    "plates_out",
-    "is_rush_hour",
+    "humidity", "no", "no2", "o3",
+    "pm4", "pm1", "pm10", "pm25",
+    "pressure", "temperature",
     "is_weekend",
+    "congestion",
 ]
 
-def encode_cyclic(value, max_value):
-    """Map value in [0, max_value) into sin/cos cyclic representation."""
-    angle = 2 * math.pi * value / max_value
-    return math.sin(angle), math.cos(angle)
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
+
 @app.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest):
-    # Convert list[Sample] -> 2D numpy array in the correct column order
     rows = []
     for s in request.samples:
-
-        sin_hour,   cos_hour   = encode_cyclic(s.hour, 24)
-        sin_weekday, cos_weekday = encode_cyclic(s.weekday, 7)
-        sin_month, cos_month   = encode_cyclic(s.month - 1, 12)   # month 1–12 → 0–11
-        sin_day, cos_day       = encode_cyclic(s.day - 1, 31)     # days 1–31 → 0–30
-
-        features = {
-            "sin_hour": sin_hour,
-            "cos_hour": cos_hour,
-            "sin_weekday": sin_weekday,
-            "cos_weekday": cos_weekday,
-            "sin_month": sin_month,
-            "cos_month": cos_month,
-            "sin_day": sin_day,
-            "cos_day": cos_day,
-            "plates_in": s.plates_in,
-            "plates_matching": s.plates_matching,
-            "plates_out": s.plates_out,
-            "is_rush_hour": s.is_rush_hour,
-            "is_weekend": s.is_weekend
-        }
-
-
-        row = [features[name] for name in FEATURE_ORDER]
+        # Build row in the exact order expected by the model
+        row = [getattr(s, name) for name in FEATURE_ORDER]
         rows.append(row)
 
     X = np.array(rows, dtype=float)
-    preds = model.predict(X)
+    preds = model.predict(X)   # shape (n_samples,) for regressor
 
+    # return as simple 1D list of floats
     return PredictResponse(predictions=preds.tolist())

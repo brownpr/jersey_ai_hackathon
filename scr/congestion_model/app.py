@@ -20,7 +20,6 @@ class Sample(BaseModel):
     plates_out: float
     is_rush_hour: int  
     is_weekend: int    
-    journey_time: float
 
 
 class PredictRequest(BaseModel):
@@ -37,7 +36,6 @@ model.load_model("congestionModel.json")
 
 # Define the exact feature order expected by the model
 FEATURE_ORDER = [
-    "journey_time",
     "plates_in",
     "plates_matching",
     "plates_out",
@@ -48,6 +46,7 @@ FEATURE_ORDER = [
     "sin_month", "cos_month",
     "sin_day", "cos_day",
 ]
+
 
 def encode_cyclic(value, max_value):
     """Map value in [0, max_value) into sin/cos cyclic representation."""
@@ -71,7 +70,6 @@ def predict(request: PredictRequest):
         sin_day, cos_day       = encode_cyclic(s.day - 1, 31)     # days 1–31 → 0–30
 
         features = {
-            "journey_time": s.journey_time,
             "sin_hour": sin_hour,
             "cos_hour": cos_hour,
             "sin_weekday": sin_weekday,

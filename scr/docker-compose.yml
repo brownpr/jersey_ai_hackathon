@@ -71,11 +71,11 @@ services:
     ports:
       - "8001:8001"
 
-  # air-quality-model-api:
-  #   build: ./air-quality-model
-  #   container_name: air-quality-model-api
-  #   ports:
-  #     - "8002:8002"
+  air-quality-model-api:
+    build: ./air-quality-model
+    container_name: air-quality-model-api
+    ports:
+      - "8002:8002"
 
 
 volumes:

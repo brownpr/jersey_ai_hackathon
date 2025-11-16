@@ -7,7 +7,7 @@ import streamlit as st
 from datetime import datetime, timedelta, date
 
 from utils.data_utils import get_data
-from app_pages import overview, analytics, congestion, chatbot
+from app_pages import overview, analytics, congestion, chatbot, airQuality
 
 # ----------------- CONFIG -----------------
 st.set_page_config(
@@ -40,7 +40,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Go to",
-        ("Overview", "Analytics", "Congestion", "Chatbot"),
+        ("Overview", "Analytics", "Congestion", "Air Quality", "Chatbot"),
     )
 
     init_data()
@@ -51,6 +51,8 @@ def main():
         analytics.render()
     elif page == "Congestion":
         congestion.render()
+    elif page == "Air Quality":
+        airQuality.render()
     elif page == "Chatbot":
         chatbot.render()
 

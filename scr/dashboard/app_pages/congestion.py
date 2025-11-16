@@ -3,7 +3,7 @@ import datetime
 import streamlit as st
 import pandas as pd 
 
-from utils.model_utils import call_model_api  
+from utils.model_utils import call_congestion_model  
 
 def render():
     st.title("🚦 Congestion Prediction")
@@ -44,7 +44,7 @@ def render():
     # Traffic Plate Metrics
     st.subheader("🧮 Traffic Metrics")
 
-    colm1, colm2, colm3, colm4 = st.columns(4)
+    colm1, colm2, colm3 = st.columns(3)
 
     with colm1:
         plates_in = st.number_input("Plates In", min_value=0.0, value=10.0, step=1.0)
@@ -55,13 +55,7 @@ def render():
     with colm3:
         plates_out = st.number_input("Plates Out", min_value=0.0, value=10.0, step=1.0)
 
-    with colm4:
-        journey_time = st.number_input(
-            "Journey Time",
-            min_value=0.0,
-            value=110.0,
-            step=1.0,
-        )
+
     # Prepare payload
     payload = {
         "samples": [
@@ -76,7 +70,6 @@ def render():
                 "plates_out": plates_out,
                 "is_rush_hour": int(is_rush_hour),
                 "is_weekend": int(is_weekend),
-                "journey_time": journey_time,
             }
         ]
     }
@@ -87,7 +80,7 @@ def render():
     if st.button("🚀 Run Prediction"):
         try:
             with st.spinner("Calling prediction API..."):
-                response_json = call_model_api(payload)
+                response_json = call_congestion_model(payload)
 
             predictions = response_json.get("predictions", [])[0]
 

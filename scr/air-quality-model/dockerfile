@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy code + model
 COPY app.py ./app.py
-COPY congestionModel.json ./congestionModel.json
+COPY airQualityModel.json ./airQualityModel.json
 
 # Expose port (FastAPI/uvicorn)
 EXPOSE 8002
