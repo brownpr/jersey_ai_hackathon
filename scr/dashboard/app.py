@@ -6,7 +6,7 @@ logging.getLogger("tornado.general").setLevel(logging.ERROR)
 import streamlit as st
 from datetime import datetime, timedelta, date
 
-from utils.data_utils import get_data
+from utils.data_utils import get_data, get_hour_df
 from app_pages import overview, analytics, congestion, chatbot, airQuality
 
 # ----------------- CONFIG -----------------
@@ -30,8 +30,10 @@ def init_data():
 
     # call your utils.get_data
     df = get_data(dt1, dt2)
+    hour_df = get_hour_df(dt1, dt2)
 
     st.session_state.df = df
+    st.session_state.df_hour = hour_df
     st.session_state.start_date = start
     st.session_state.end_date = today
 

@@ -6,30 +6,14 @@ logging.getLogger("tornado.general").setLevel(logging.ERROR)
 import streamlit as st
 import pandas as pd
 
+from utils.ui_utils import run_latest_predictions_ui
+
 def render():
     st.title("📊 Overview")
 
-    # ---- Dummy prediction model views (synthetic) ----
-    st.subheader("🔮 Prediction model snapshots (synthetic)")
+    st.subheader("🔮 Latest 24h model forecast")
 
-    colp1, colp2, colp3 = st.columns(3)
-    colp1.metric("Run A (OK)", "RMSE 0.82", "-5% vs last run")
-    colp2.metric("Run B (degraded)", "RMSE 1.47", "+18% vs last run")
-    colp3.metric("Run C (bad)", "RMSE 2.95", "+61% vs last run")
-
-    dummy_preds = pd.DataFrame(
-        {
-            "sample_id": [1, 2, 3, 4, 5],
-            "actual":    [10.2,  5.4,  8.1, 11.0,  7.5],
-            "predicted": [10.1,  7.0,  6.0, 15.2,  7.6],
-            "error":     [-0.1,  1.6, -2.1,  4.2,  0.1],
-            "quality":   ["OK", "OK", "Bad", "Bad", "OK"],
-        }
-    )
-
-    st.caption("Example predicted vs actual values from a recent model run (dummy data).")
-    st.dataframe(dummy_preds, use_container_width=True)
-
+    run_latest_predictions_ui()
     st.markdown("---")
 
     st.subheader("🔎 Basic overview of data over time.")

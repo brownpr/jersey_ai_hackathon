@@ -68,3 +68,65 @@ def get_data(dt1: datetime, dt2: datetime):
     df = df.rename(columns=lambda c: c.strip() if isinstance(c, str) else c)
 
     return df
+
+# ---------- Feature functions ----------
+
+def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()  # avoid mutating upstream cached data
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["hour"] = df["timestamp"].dt.hour
+    df["day"] = df["timestamp"].dt.day
+    df["weekday"] = df["timestamp"].dt.weekday
+    df["month"] = df["timestamp"].dt.month
+    df["year"] = df["timestamp"].dt.year
+    
+    return df
+
+
+def pivot_variables(df: pd.DataFrame) -> pd.DataFrame:
+    pivoted = df.pivot_table(
+        index=["hour", "day", "weekday", "month", "year"],
+        columns="variable",
+        values="value",
+        aggfunc="mean"     # in case multiple values per timestamp
+    ).reset_index()
+
+    return pivoted
+
+
+def add_rush_hour_flag(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    hours = df["hour"]
+
+    df["Is Rush Hour"] = (
+        ((hours >= 7) & (hours < 10)) |   # Morning rush
+        ((hours >= 16) & (hours < 19))    # Evening rush
+    ).astype(int)
+
+    return df
+
+
+def add_is_weekend(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["Is Weekend"] = df["weekday"].isin([5, 6]).astype(int)
+    return df
+
+
+@st.cache_data(show_spinner="Building hourly dataframe...")
+def get_hour_df(dt1: datetime, dt2: datetime) -> pd.DataFrame:
+    """
+    Uses get_data, then adds time features, pivots, and adds flags.
+    Result is the cached hourly-level dataframe.
+    """
+    df = get_data(dt1, dt2)
+
+    if df is None or df.empty:
+        return df
+
+    df = add_time_features(df)
+    df = pivot_variables(df)
+    df = add_rush_hour_flag(df)
+    df = add_is_weekend(df)
+
+    return df
