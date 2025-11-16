@@ -1,4 +1,4 @@
 from . import overview
 from . import analytics
-from . import prediction
+from . import congestion
 from . import chatbot

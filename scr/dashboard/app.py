@@ -7,7 +7,7 @@ import streamlit as st
 from datetime import datetime, timedelta, date
 
 from utils.data_utils import get_data
-from app_pages import overview, analytics, prediction, chatbot
+from app_pages import overview, analytics, congestion, chatbot
 
 # ----------------- CONFIG -----------------
 st.set_page_config(
@@ -22,7 +22,8 @@ def init_data():
         return  # already initialized for this session
 
     today = date.today()
-    start = today - timedelta(days=182)  # ~ last 6 months; change if you want
+    # start = today - timedelta(days=182)  # ~ last 6 months
+    start = today - timedelta(days=14)  # ~ last 14 days
 
     dt1 = datetime.combine(start, datetime.min.time())
     dt2 = datetime.combine(today, datetime.max.time())
@@ -39,7 +40,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Go to",
-        ("Overview", "Analytics", "Prediction", "Chatbot"),
+        ("Overview", "Analytics", "Congestion", "Chatbot"),
     )
 
     init_data()
@@ -48,8 +49,8 @@ def main():
         overview.render()
     elif page == "Analytics":
         analytics.render()
-    elif page == "Prediction":
-        prediction.render()
+    elif page == "Congestion":
+        congestion.render()
     elif page == "Chatbot":
         chatbot.render()
 
